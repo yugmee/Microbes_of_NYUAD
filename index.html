@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Microbes of NYUAD – Scavenger Hunt</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #050814;
+      color: #f5f5f5;
+      display: flex;
+      height: 100vh;
+    }
+    .map-container {
+      position: relative;
+      flex: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: #050814;
+    }
+    .map-container img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    }
+    .map-pin {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: none;
+      background: rgba(152, 84, 222, 0.95);
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+    .map-pin:hover {
+      transform: translate(-50%, -50%) scale(1.08);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+      background: rgba(194, 120, 255, 0.97);
+    }
+
+    .sidebar {
+      flex: 1;
+      padding: 18px 20px;
+      background: radial-gradient(circle at top, #151a3a, #050814 55%);
+      border-left: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+    }
+    .sidebar h1 {
+      font-size: 22px;
+      margin: 0;
+    }
+    .sidebar p {
+      font-size: 13px;
+      margin: 4px 0;
+    }
+    .panel {
+      margin-top: 8px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(8, 12, 40, 0.95);
+      border: 1px solid rgba(255,255,255,0.06);
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #9da3ff;
+    }
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .chip {
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(9,14,40,0.9);
+    }
+    .chip.done {
+      border-color: #65ffb2;
+      color: #65ffb2;
+    }
+    .success-banner {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #32e397, #7b9dff);
+      color: #050814;
+      font-size: 13px;
+      font-weight: 600;
+      display: none;
+    }
+    .success-banner.visible {
+      display: block;
+    }
+
+    /* WOW microbiome viz section */
+    #vizSection {
+      margin-top: 10px;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #vizCanvas {
+      width: 100%;
+      height: 220px;
+      border-radius: 16px;
+      background: radial-gradient(circle at center, #1c2454, #050814);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .viz-caption {
+      font-size: 12px;
+      color: #c3c6ff;
+    }
+
+    @media (max-width: 900px) {
+      body { flex-direction: column; }
+      .map-container { height: 55vh; }
+      .sidebar { height: 45vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="map-container">
+    <img src="./campus-map.png" alt="NYUAD Campus Map">
+
+    <!-- tweak these top/left values to sit over the buildings -->
+    <button class="map-pin" style="top:25%; left:25%;" data-id="C1">C1</button>
+    <button class="map-pin" style="top:70%; left:30%;" data-id="A2">A2</button>
+    <button class="map-pin" style="top:72%; left:42%;" data-id="A3">A3</button>
+    <button class="map-pin" style="top:70%; left:60%;" data-id="A5">A5</button>
+    <button class="map-pin" style="top:70%; left:72%;" data-id="A6">A6</button>
+    <button class="map-pin" style="top:78%; left:80%;" data-id="D2">D2</button>
+  </div>
+
+  <div class="sidebar">
+    <h1>Microbes of NYUAD</h1>
+    <p>Click a building on the map to visit its microbe page, watch the video, answer the quiz, and unlock its secret code.</p>
+
+    <div class="panel">
+      <div class="label">Progress</div>
+      <div class="chip-row" id="progressChips"></div>
+    </div>
+
+    <div class="success-banner" id="successBanner">
+      ✅ You discovered all 6 microbes! Scroll down to see your living microbiome visualization. 🌈🦠
+    </div>
+
+    <div class="panel" id="vizSection">
+      <div class="label">Unlocked: Your Campus Microbiome</div>
+      <canvas id="vizCanvas"></canvas>
+      <p class="viz-caption">
+        Each glowing cell represents one of the microbes you found across NYUAD.
+        They drift, bump, and interact like a tiny ecosystem made from your choices.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // IDs of all buildings in the hunt
+    const BUILDING_IDS = ["A6","A5","C1","A2","A3","D2"];
+
+    // nav: clicking on pin -> go to building.html?id=A2 etc.
+    document.querySelectorAll(".map-pin").forEach(pin => {
+      pin.addEventListener("click", () => {
+        const id = pin.dataset.id;
+        window.location.href = `building.html?id=${encodeURIComponent(id)}`;
+      });
+    });
+
+    // progress chips
+    const chipsContainer = document.getElementById("progressChips");
+    const solved = {};
+    BUILDING_IDS.forEach(id => {
+      const chip = document.createElement("div");
+      chip.className = "chip";
+      chip.textContent = id;
+      chip.dataset.id = id;
+      chipsContainer.appendChild(chip);
+
+      const key = "microbes_" + id;
+      const done = localStorage.getItem(key) === "true";
+      solved[id] = done;
+      if (done) chip.classList.add("done");
+    });
+
+    function checkAllSolved() {
+      return BUILDING_IDS.every(id => solved[id]);
+    }
+
+    const successBanner = document.getElementById("successBanner");
+    const vizSection = document.getElementById("vizSection");
+
+    if (checkAllSolved()) {
+      successBanner.classList.add("visible");
+      vizSection.style.display = "flex";
+      startMicrobiomeViz();
+    }
+
+    // WOW MICROBIOME VISUALIZATION
+    function startMicrobiomeViz() {
+      const canvas = document.getElementById("vizCanvas");
+      const ctx = canvas.getContext("2d");
+
+      function resize() {
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+      }
+      resize();
+      window.addEventListener("resize", resize);
+
+      const microbes = [];
+      const colors = {
+        A6: "#ff9bd5",
+        A5: "#9cffd3",
+        C1: "#ffcf7b",
+        A2: "#9eb5ff",
+        A3: "#c79bff",
+        D2: "#7bffe4"
+      };
+
+      // Make a few particles per building
+      BUILDING_IDS.forEach(id => {
+        if (!solved[id]) return; // should all be solved, but just in case
+        for (let i = 0; i < 12; i++) {
+          microbes.push({
+            id,
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            vx: (Math.random() - 0.5) * 0.6,
+            vy: (Math.random() - 0.5) * 0.6,
+            r: 4 + Math.random() * 4,
+            color: colors[id]
+          });
+        }
+      });
+
+      let mouse = {x: null, y: null};
+      canvas.addEventListener("mousemove", e => {
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = e.clientX - rect.left;
+        mouse.y = e.clientY - rect.top;
+      });
+      canvas.addEventListener("mouseleave", () => { mouse.x = mouse.y = null; });
+
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // soft glow background
+        ctx.fillStyle = "rgba(5, 8, 20, 0.8)";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+
+        microbes.forEach(m => {
+          m.x += m.vx;
+          m.y += m.vy;
+
+          // bounce from edges
+          if (m.x < m.r || m.x > canvas.width - m.r) m.vx *= -1;
+          if (m.y < m.r || m.y > canvas.height - m.r) m.vy *= -1;
+
+          // a little attraction to mouse
+          if (mouse.x != null) {
+            const dx = mouse.x - m.x;
+            const dy = mouse.y - m.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 80) {
+              m.x -= dx * 0.004;
+              m.y -= dy * 0.004;
+            }
+          }
+
+          // draw glowing cell
+          const grd = ctx.createRadialGradient(m.x, m.y, 1, m.x, m.y, m.r*2.4);
+          grd.addColorStop(0, "rgba(255,255,255,0.95)");
+          grd.addColorStop(0.4, m.color);
+          grd.addColorStop(1, "rgba(0,0,0,0)");
+          ctx.fillStyle = grd;
+          ctx.beginPath();
+          ctx.arc(m.x, m.y, m.r*2.4, 0, Math.PI*2);
+          ctx.fill();
+        });
+
+        requestAnimationFrame(animate);
+      }
+      animate();
+    }
+  </script>
+</body>
+</html>
