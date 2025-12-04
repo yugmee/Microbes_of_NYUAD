@@ -127,4 +127,197 @@
   </style>
 </head>
 <body>
-  <div class="ca
+  <div class="card">
+    <div>
+      <div class="label">Location</div>
+      <h1 id="buildingTitle">Loading…</h1>
+    </div>
+
+    <div>
+      <div class="label">Microbe story</div>
+      <h2 id="microbeName"></h2>
+      <p id="microbeText"></p>
+    </div>
+
+    <div>
+      <div class="label">Video</div>
+      <div class="video-box" id="videoBox">
+        <!-- replace src with your TikTok/YouTube embed links in config -->
+        <iframe id="videoFrame" src="" allowfullscreen></iframe>
+      </div>
+    </div>
+
+    <div>
+      <div class="label">Quiz</div>
+      <p id="questionText"></p>
+      <div class="options" id="optionsContainer"></div>
+      <div class="status" id="status"></div>
+      <div class="code-pill" id="codePill" style="display:none;">
+        Secret code unlocked:
+        <span class="code" id="codeText"></span>
+      </div>
+    </div>
+
+    <div class="footer-row">
+      <a class="back-link" href="index.html">← Back to campus map</a>
+      <div class="chip" id="progressChip"></div>
+    </div>
+  </div>
+
+  <script>
+    // CONFIG for each building
+    const BUILDINGS = {
+      A6: {
+        title: "A6 – Arts & Humanities",
+        microbe: "Saccharomyces cerevisiae (yeast)",
+        text: "Yeast ferments sugars into CO₂ and alcohol. It also powers biodesign projects and sustainable materials.",
+        question: "Where else might you find Saccharomyces cerevisiae at NYUAD?",
+        options: [
+          "In fermented foods like bread and kombucha served on campus",
+          "Inside the campus Wi-Fi routers",
+          "Only deep in the ocean, never on land"
+        ],
+        correctIndex: 0,
+        code: "FERMENT",
+        video: "" // put an embed URL here (e.g. YouTube embed)
+      },
+      A5: {
+        title: "A5 – Social Science Building",
+        microbe: "Staphylococcus epidermidis",
+        text: "A friendly skin microbe living in communities on our bodies, helping defend against invaders.",
+        question: "Why is Staphylococcus epidermidis considered a 'good neighbour' on our skin?",
+        options: [
+          "It blocks more harmful microbes from taking over",
+          "It produces plastic in our pores",
+          "It makes our skin glow in the dark"
+        ],
+        correctIndex: 0,
+        code: "COMMUNITY",
+        video: ""
+      },
+      C1: {
+        title: "C1 – Experimental Research Building",
+        microbe: "Pseudomonas aeruginosa (lab strain)",
+        text: "A versatile environmental bacterium used to study biofilms and antimicrobial resistance.",
+        question: "What is a biofilm?",
+        options: [
+          "A slimy microbial city stuck to a surface",
+          "A movie about bacteria",
+          "A plastic wrap used in labs"
+        ],
+        correctIndex: 0,
+        code: "BIOFILM",
+        video: ""
+      },
+      A2: {
+        title: "A2 – Computational Research Building",
+        microbe: "Bacteroides (gut data cruncher)",
+        text: "Bacteroides break down complex carbohydrates in the gut, like tiny data processors for our food.",
+        question: "What 'fuel' do Bacteroides especially love to break down?",
+        options: [
+          "Dietary fibre from plants",
+          "Pure gold dust",
+          "Wi-Fi signals"
+        ],
+        correctIndex: 0,
+        code: "ALGORITHM",
+        video: ""
+      },
+      A3: {
+        title: "A3 – West Administration",
+        microbe: "Streptococcus mitis",
+        text: "An oral microbiome resident that lives where communication starts – in the mouth.",
+        question: "How is Streptococcus mitis connected to communication?",
+        options: [
+          "It lives in the mouth, where speech begins",
+          "It sends emails for us",
+          "It controls Wi-Fi speed"
+        ],
+        correctIndex: 0,
+        code: "POLICY",
+        video: ""
+      },
+      D2: {
+        title: "D2 – East Restaurant",
+        microbe: "Lactobacillus",
+        text: "Lactobacillus ferments foods like yogurt, pickles, and kimchi, supporting gut health and food preservation.",
+        question: "Why are Lactobacillus-rich foods climate-friendly?",
+        options: [
+          "They can be plant-based, low-waste, and stored longer",
+          "They are made from fossil fuels",
+          "They require flying the microbes around the world daily"
+        ],
+        correctIndex: 0,
+        code: "YOGHURT",
+        video: ""
+      }
+    };
+
+    // read id from URL (?id=A2 etc.)
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+
+    const data = BUILDINGS[id];
+    if (!data) {
+      document.querySelector(".card").innerHTML =
+        "<h1>Unknown location</h1><p>Check the link you used.</p><a class='back-link' href='index.html'>Back to map</a>";
+    } else {
+      const titleEl = document.getElementById("buildingTitle");
+      const microbeNameEl = document.getElementById("microbeName");
+      const microbeTextEl = document.getElementById("microbeText");
+      const questionTextEl = document.getElementById("questionText");
+      const optionsContainer = document.getElementById("optionsContainer");
+      const statusEl = document.getElementById("status");
+      const codePill = document.getElementById("codePill");
+      const codeText = document.getElementById("codeText");
+      const videoFrame = document.getElementById("videoFrame");
+      const progressChip = document.getElementById("progressChip");
+
+      titleEl.textContent = data.title;
+      microbeNameEl.textContent = data.microbe;
+      microbeTextEl.textContent = data.text;
+      questionTextEl.textContent = data.question;
+      progressChip.textContent = `ID: ${id}`;
+
+      if (data.video) {
+        videoFrame.src = data.video;
+      } else {
+        // optional: show placeholder
+        videoFrame.parentElement.innerHTML =
+          "<p style='font-size:12px;padding:8px;'>Video coming soon. For now, imagine a dramatic microbe close-up 👀</p>";
+      }
+
+      let alreadySolved = localStorage.getItem("microbes_" + id) === "true";
+      if (alreadySolved) {
+        codePill.style.display = "inline-flex";
+        codeText.textContent = data.code;
+        statusEl.textContent = "You already solved this location. Code restored from memory ✓";
+        statusEl.classList.add("ok");
+      }
+
+      data.options.forEach((opt, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "option-btn";
+        btn.textContent = opt;
+        btn.addEventListener("click", () => {
+          if (idx === data.correctIndex) {
+            btn.classList.add("correct");
+            statusEl.textContent = "Correct! This location is now unlocked.";
+            statusEl.className = "status ok";
+            codePill.style.display = "inline-flex";
+            codeText.textContent = data.code;
+            localStorage.setItem("microbes_" + id, "true");
+            localStorage.setItem("microbes_code_" + id, data.code);
+          } else {
+            btn.classList.add("wrong");
+            statusEl.textContent = "Not quite. Try another option!";
+            statusEl.className = "status error";
+          }
+        });
+        optionsContainer.appendChild(btn);
+      });
+    }
+  </script>
+</body>
+</html>
+
